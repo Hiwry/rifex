@@ -15,6 +15,7 @@ interface DashboardProps {
   participants: Participant[];
   payments: Payment[];
   onTabChange: (tab: string) => void;
+  isAdmin?: boolean;
 }
 
 export default function Dashboard({
@@ -23,22 +24,27 @@ export default function Dashboard({
   participants,
   payments,
   onTabChange,
+  isAdmin = false,
 }: DashboardProps) {
   if (!tournament) {
     return (
-      <div id="no-active-tournament" className="flex flex-col items-center justify-center p-12 text-center bg-white rounded-2xl shadow-xs border border-slate-100 max-w-lg mx-auto mt-8">
+      <div id="no-active-tournament" className="flex flex-col items-center justify-center p-12 text-center bg-dark-card rounded-2xl shadow-xs border border-dark-border max-w-lg mx-auto mt-8">
         <AlertCircle className="w-16 h-16 text-amber-500 mb-4 animate-bounce" />
-        <h3 className="text-xl font-bold text-slate-800 mb-2">Nenhum Torneio Ativo</h3>
-        <p className="text-slate-500 text-sm mb-6">
-          Para começar a gerenciar o sorteio, você precisa cadastrar um torneio primeiro.
+        <h3 className="text-xl font-bold text-white mb-2">Nenhum Torneio Ativo</h3>
+        <p className="text-slate-400 text-sm mb-6">
+          {isAdmin 
+            ? "Para começar a gerenciar o sorteio, você precisa cadastrar um torneio primeiro."
+            : "No momento, não há nenhum torneio ativo ou cadastrado. Por favor, aguarde o administrador iniciar o torneio."}
         </p>
-        <button
-          id="btn-create-tournament-dash"
-          onClick={() => onTabChange("tournament-config")}
-          className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors shadow-xs"
-        >
-          Criar Novo Torneio
-        </button>
+        {isAdmin && (
+          <button
+            id="btn-create-tournament-dash"
+            onClick={() => onTabChange("tournament-config")}
+            className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors shadow-xs cursor-pointer"
+          >
+            Criar Novo Torneio
+          </button>
+        )}
       </div>
     );
   }
@@ -237,12 +243,14 @@ export default function Dashboard({
               <Calendar className="w-3.5 h-3.5 text-gold-primary" />
               DRAW: {formatarData(tournament.draw_date)}
             </span>
-            <button 
-              onClick={() => onTabChange("tournament-config")}
-              className="text-gold-primary hover:text-white font-bold transition-colors cursor-pointer uppercase tracking-wider text-[10px]"
-            >
-              Configurar
-            </button>
+            {isAdmin && (
+              <button 
+                onClick={() => onTabChange("tournament-config")}
+                className="text-gold-primary hover:text-white font-bold transition-colors cursor-pointer uppercase tracking-wider text-[10px]"
+              >
+                Configurar
+              </button>
+            )}
           </div>
         </div>
 
@@ -297,10 +305,10 @@ export default function Dashboard({
               {tournament.is_infinite ? `Total Adquirido: ${numbers.length}` : `Total: ${totalNumbers} cotas`}
             </span>
             <button 
-              onClick={() => onTabChange("participants")}
+              onClick={() => onTabChange(isAdmin ? "participants" : "public-participants")}
               className="text-gold-primary hover:text-white font-bold transition-colors cursor-pointer uppercase tracking-wider text-[10px]"
             >
-              Gerenciar
+              {isAdmin ? "Gerenciar" : "Ver Candidatos"}
             </button>
           </div>
         </div>
@@ -332,12 +340,14 @@ export default function Dashboard({
             <span className="font-bold text-slate-500 text-[10px] uppercase tracking-wider">
               {tournament.is_infinite ? "MÁX: Sem Limite" : `MÁX: ${formatarValor(maxPossibleAmount)}`}
             </span>
-            <button 
-              onClick={() => onTabChange("participants")}
-              className="text-gold-primary hover:text-white font-bold transition-colors cursor-pointer uppercase tracking-wider text-[10px]"
-            >
-              Aprovar Pix
-            </button>
+            {isAdmin && (
+              <button 
+                onClick={() => onTabChange("participants")}
+                className="text-gold-primary hover:text-white font-bold transition-colors cursor-pointer uppercase tracking-wider text-[10px]"
+              >
+                Aprovar Pix
+              </button>
+            )}
           </div>
         </div>
 
@@ -367,10 +377,10 @@ export default function Dashboard({
           <div className="mt-5 pt-4 border-t border-dark-border-light flex items-center justify-between text-xs text-slate-400">
             <span className="font-bold text-slate-500 text-[10px] uppercase tracking-wider">COMPRADORES ATIVOS</span>
             <button 
-              onClick={() => onTabChange("participants")}
+              onClick={() => onTabChange(isAdmin ? "participants" : "public-participants")}
               className="text-gold-primary hover:text-white font-bold transition-colors cursor-pointer uppercase tracking-wider text-[10px]"
             >
-              Ver Lista
+              {isAdmin ? "Ver Lista" : "Ver Candidatos"}
             </button>
           </div>
         </div>
@@ -476,10 +486,10 @@ export default function Dashboard({
 
           <div className="mt-5 pt-4 border-t border-dark-border-light">
             <button
-              onClick={() => onTabChange("participants")}
+              onClick={() => onTabChange(isAdmin ? "participants" : "public-participants")}
               className="w-full text-center py-2.5 bg-gold-primary hover:bg-gold-dark text-black rounded-lg text-xs font-black uppercase tracking-wider transition-colors cursor-pointer glow-winner"
             >
-              Gerenciar Participantes & Números
+              {isAdmin ? "Gerenciar Participantes & Números" : "Visualizar Candidatos & Doações"}
             </button>
           </div>
         </div>

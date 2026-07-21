@@ -1304,6 +1304,7 @@ export default function App() {
             participants={participants}
             payments={payments}
             onTabChange={(tab) => setActiveTab(tab)}
+            isAdmin={isAdmin}
           />
         )}
 
@@ -1318,7 +1319,7 @@ export default function App() {
 
 
 
-        {activeTab === "participants" && (
+        {activeTab === "participants" && isAdmin && (
           <ParticipantList
             tournament={tournament}
             participants={participants}
@@ -1333,7 +1334,7 @@ export default function App() {
           />
         )}
 
-        {activeTab === "tournament-config" && (
+        {activeTab === "tournament-config" && isAdmin && (
           <TournamentForm
             currentTournament={tournament}
             onSaveTournament={handleSaveTournament}
@@ -1353,7 +1354,7 @@ export default function App() {
           />
         )}
 
-        {activeTab === "audit-logs" && (
+        {activeTab === "audit-logs" && isAdmin && (
           <AuditLogList 
             logs={logs} 
             onClearLogs={handleClearLogs} 
