@@ -49,6 +49,8 @@ export default function ParticipantList({
   const [contactForm, setContactForm] = useState("");
   const [notesForm, setNotesForm] = useState("");
   const [newNumbersStr, setNewNumbersStr] = useState("");
+  const [addNumbersMode, setAddNumbersMode] = useState<"manual" | "auto">("manual");
+  const [autoQty, setAutoQty] = useState<number>(1);
 
   if (!tournament) {
     return (
@@ -57,6 +59,45 @@ export default function ParticipantList({
       </div>
     );
   }
+
+  // Generate random available numbers for candidate
+  const generateRandomAvailableNumbers = (qty: number): number[] => {
+    const minVal = tournament.is_infinite ? 1 : tournament.number_start;
+    const maxVal = tournament.is_infinite ? (numbers.length + qty + 100) : tournament.number_end;
+    
+    // Find all taken numbers
+    const takenNumbers = new Set(
+      numbers
+        .filter((n) => n.status === NumberStatus.Reservado || n.status === NumberStatus.Pago)
+        .map((n) => n.number)
+    );
+
+    const available: number[] = [];
+    if (tournament.is_infinite) {
+      // For infinite, sequentially generate numbers that are not taken starting from 1
+      let current = 1;
+      while (available.length < qty && current < 999999) {
+        if (!takenNumbers.has(current)) {
+          available.push(current);
+        }
+        current++;
+      }
+    } else {
+      // For finite, gather all available numbers
+      const allAvailable: number[] = [];
+      for (let i = minVal; i <= maxVal; i++) {
+        if (!takenNumbers.has(i)) {
+          allAvailable.push(i);
+        }
+      }
+      
+      // Shuffle and pick Qty
+      const shuffled = [...allAvailable].sort(() => 0.5 - Math.random());
+      available.push(...shuffled.slice(0, Math.min(qty, shuffled.length)));
+    }
+
+    return available;
+  };
 
   // Find numbers owned by a participant
   const getParticipantNumbers = (pId: string) => {
@@ -140,37 +181,54 @@ export default function ParticipantList({
     e.preventDefault();
     if (!addingNumbersToParticipant) return;
     
-    // Parse input string of numbers, e.g. "5, 12, 45"
-    const minVal = tournament.is_infinite ? 1 : tournament.number_start;
-    const maxVal = tournament.is_infinite ? 999999 : tournament.number_end;
-    const inputNumbers = newNumbersStr
-      .split(/[,\s]+/)
-      .map((s) => parseInt(s.trim()))
-      .filter((n) => !isNaN(n) && n >= minVal && n <= maxVal);
+    let inputNumbers: number[] = [];
 
-    if (inputNumbers.length === 0) {
-      alert("Por favor, digite números válidos dentro do range do torneio!");
-      return;
-    }
+    if (addNumbersMode === "manual") {
+      // Parse input string of numbers, e.g. "5, 12, 45"
+      const minVal = tournament.is_infinite ? 1 : tournament.number_start;
+      const maxVal = tournament.is_infinite ? 999999 : tournament.number_end;
+      inputNumbers = newNumbersStr
+        .split(/[,\s]+/)
+        .map((s) => parseInt(s.trim()))
+        .filter((n) => !isNaN(n) && n >= minVal && n <= maxVal);
 
-    // Check availability of each requested number
-    const unavailable: number[] = [];
-    inputNumbers.forEach((num) => {
-      const match = numbers.find((n) => n.number === num);
-      if (match && match.status !== NumberStatus.Disponivel) {
-        unavailable.push(num);
+      if (inputNumbers.length === 0) {
+        alert("Por favor, digite números válidos dentro do range do torneio!");
+        return;
       }
-    });
 
-    if (unavailable.length > 0) {
-      alert(`Os seguintes números estão indisponíveis: ${unavailable.join(", ")}`);
-      return;
+      // Check availability of each requested number
+      const unavailable: number[] = [];
+      inputNumbers.forEach((num) => {
+        const match = numbers.find((n) => n.number === num);
+        if (match && match.status !== NumberStatus.Disponivel) {
+          unavailable.push(num);
+        }
+      });
+
+      if (unavailable.length > 0) {
+        alert(`Os seguintes números estão indisponíveis: ${unavailable.join(", ")}`);
+        return;
+      }
+    } else {
+      // Automatic/random generation
+      if (autoQty <= 0) {
+        alert("A quantidade de números a gerar deve ser pelo menos 1!");
+        return;
+      }
+      inputNumbers = generateRandomAvailableNumbers(autoQty);
+      if (inputNumbers.length === 0) {
+        alert("Não existem números disponíveis no momento!");
+        return;
+      }
     }
 
     // Success!
     onAddNumberToParticipantDirectly(addingNumbersToParticipant.id, inputNumbers);
     setAddingNumbersToParticipant(null);
     setNewNumbersStr("");
+    setAutoQty(1);
+    setAddNumbersMode("manual");
   };
 
   const resetForm = () => {
@@ -709,21 +767,70 @@ export default function ParticipantList({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-black text-slate-300 uppercase tracking-wider mb-1.5">
-                    Digite os números (separados por vírgula ou espaço):
-                  </label>
-                  <input
-                    id="input-add-p-numbers"
-                    type="text"
-                    required
-                    placeholder="Ex: 5, 27, 88"
-                    value={newNumbersStr}
-                    onChange={(e) => setNewNumbersStr(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-dark-card-elevated border border-dark-border rounded-lg text-xs font-mono text-white focus:bg-dark-card focus:border-gold-primary focus:ring-1 focus:ring-gold-primary outline-none"
-                  />
-                  <span className="text-[10px] text-slate-500 block mt-1.5 font-bold uppercase tracking-wider">
-                    Valores permitidos: de {tournament.is_infinite ? "1" : tournament.number_start} a {tournament.is_infinite ? "999.999" : tournament.number_end}
-                  </span>
+                  {/* TABS: MANUAL VS AUTO */}
+                  <div className="flex border border-dark-border rounded-xl overflow-hidden p-1 bg-dark-card-elevated mb-4">
+                    <button
+                      type="button"
+                      onClick={() => setAddNumbersMode("manual")}
+                      className={`flex-1 py-1.5 text-center text-[10px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
+                        addNumbersMode === "manual"
+                          ? "bg-gold-primary text-black shadow"
+                          : "text-slate-400 hover:text-white"
+                      }`}
+                    >
+                      Digitar Manual
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAddNumbersMode("auto")}
+                      className={`flex-1 py-1.5 text-center text-[10px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
+                        addNumbersMode === "auto"
+                          ? "bg-gold-primary text-black shadow"
+                          : "text-slate-400 hover:text-white"
+                      }`}
+                    >
+                      Gerar Aleatórios
+                    </button>
+                  </div>
+
+                  {addNumbersMode === "manual" ? (
+                    <div>
+                      <label className="block text-xs font-black text-slate-300 uppercase tracking-wider mb-1.5">
+                        Digite os números (separados por vírgula ou espaço):
+                      </label>
+                      <input
+                        id="input-add-p-numbers"
+                        type="text"
+                        required={addNumbersMode === "manual"}
+                        placeholder="Ex: 5, 27, 88"
+                        value={newNumbersStr}
+                        onChange={(e) => setNewNumbersStr(e.target.value)}
+                        className="w-full px-3 py-2.5 bg-dark-card-elevated border border-dark-border rounded-lg text-xs font-mono text-white focus:bg-dark-card focus:border-gold-primary focus:ring-1 focus:ring-gold-primary outline-none"
+                      />
+                      <span className="text-[10px] text-slate-500 block mt-1.5 font-bold uppercase tracking-wider">
+                        Valores permitidos: de {tournament.is_infinite ? "1" : tournament.number_start} a {tournament.is_infinite ? "999.999" : tournament.number_end}
+                      </span>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-xs font-black text-slate-300 uppercase tracking-wider mb-1.5">
+                        Quantidade de números a gerar aleatoriamente:
+                      </label>
+                      <input
+                        id="input-add-p-numbers-qty"
+                        type="number"
+                        required={addNumbersMode === "auto"}
+                        min={1}
+                        max={100}
+                        value={autoQty}
+                        onChange={(e) => setAutoQty(Math.max(1, parseInt(e.target.value) || 1))}
+                        className="w-full px-3 py-2.5 bg-dark-card-elevated border border-dark-border rounded-lg text-xs font-mono text-white focus:bg-dark-card focus:border-gold-primary focus:ring-1 focus:ring-gold-primary outline-none"
+                      />
+                      <span className="text-[10px] text-slate-500 block mt-1.5 font-bold uppercase tracking-wider">
+                        Serão selecionados e atribuídos números disponíveis aleatórios para o participante.
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex justify-end gap-2.5 pt-4 border-t border-dark-border-light">

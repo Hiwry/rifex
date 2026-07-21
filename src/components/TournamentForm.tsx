@@ -23,12 +23,14 @@ interface TournamentFormProps {
     notes?: string,
     isInfinite?: boolean
   ) => void;
+  onWipeAllData?: () => void;
 }
 
 export default function TournamentForm({
   currentTournament,
   onSaveTournament,
   onCreateNewTournament,
+  onWipeAllData,
 }: TournamentFormProps) {
   const [isEditing, setIsEditing] = useState(false);
   
@@ -156,7 +158,24 @@ export default function TournamentForm({
           </p>
         </div>
 
-        <div className="flex gap-2 w-full sm:w-auto">
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+          {onWipeAllData && !isCreateMode && (
+            <button
+              id="btn-wipe-all-data"
+              onClick={() => {
+                if (confirm("ATENÇÃO: Isso irá apagar de forma definitiva TODOS os dados do banco de dados (Participantes, Compras de Cotas, Pagamentos, Histórico e Logs de Auditoria).\n\nTem certeza absoluta de que deseja apagar tudo para inserir dados reais?")) {
+                  if (confirm("Segunda Confirmação: Esta operação é permanente e não poderá ser desfeita. Continuar com a limpeza geral?")) {
+                    onWipeAllData();
+                  }
+                }
+              }}
+              className="flex-1 sm:flex-initial px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <AlertTriangle className="w-4 h-4 text-white" />
+              Limpar Tudo (Dados Reais)
+            </button>
+          )}
+
           {!isCreateMode && (
             <button
               id="btn-trigger-new-tournament"

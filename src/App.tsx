@@ -37,6 +37,8 @@ import {
   clearAllAuditLogsInFirebase,
   saveTournamentHistoryToFirebase,
   loadTournamentHistoryFromFirebase,
+  clearAllParticipantsInFirebase,
+  clearAllHistoryInFirebase,
 } from "./firebaseService";
 import { formatarValor, padronizarNumero, gerarHash } from "./utils";
 import Dashboard from "./components/Dashboard";
@@ -45,6 +47,7 @@ import TournamentForm from "./components/TournamentForm";
 import RaffleDraw from "./components/RaffleDraw";
 import AuditLogList from "./components/AuditLogList";
 import HistoryList from "./components/HistoryList";
+import PublicParticipants from "./components/PublicParticipants";
 
 import {
   Trophy,
@@ -945,6 +948,76 @@ export default function App() {
     createAuditLog("Criação de torneio", "tournament", newT.id, tournament, newT);
   };
 
+  // Completely wipe all database collections and reset state to empty / clean slate
+  const handleWipeAllData = async () => {
+    try {
+      // 1. Clear participants
+      setParticipants([]);
+      safeSetLocalStorage("raffle_participants", "[]");
+      await clearAllParticipantsInFirebase();
+
+      // 2. Reset numbers to clean slate (all available)
+      const freshNumbers: TournamentNumber[] = [];
+      if (tournament && !tournament.is_infinite) {
+        for (let i = tournament.number_start; i <= tournament.number_end; i++) {
+          freshNumbers.push({
+            id: `num_${tournament.id}_${i}`,
+            tournament_id: tournament.id,
+            participant_id: "",
+            number: i,
+            price: tournament.number_price,
+            status: NumberStatus.Disponivel,
+            payment_status: PaymentStatus.Pendente,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          });
+        }
+      }
+      setNumbers(freshNumbers);
+      safeSetLocalStorage("raffle_numbers", JSON.stringify(freshNumbers));
+      await clearAllNumbersInFirebase();
+
+      // 3. Clear payments
+      setPayments([]);
+      safeSetLocalStorage("raffle_payments", "[]");
+      await clearAllPaymentsInFirebase();
+
+      // 4. Clear draw results
+      setDrawResult(null);
+      localStorage.removeItem("raffle_draw_result");
+      await saveDrawResultToFirebase(null);
+
+      // 5. Clear history
+      setHistory([]);
+      safeSetLocalStorage("raffle_tournament_history", "[]");
+      await clearAllHistoryInFirebase();
+
+      // 6. Clear audit logs
+      setLogs([]);
+      safeSetLocalStorage("raffle_audit_logs", "[]");
+      await clearAllAuditLogsInFirebase();
+
+      // 7. Update current tournament status & totals
+      if (tournament) {
+        const updatedT: Tournament = {
+          ...tournament,
+          confirmed_amount: 0,
+          prize_amount: 0,
+          status: TournamentStatus.Aberto,
+          updated_at: new Date().toISOString(),
+        };
+        setTournament(updatedT);
+        safeSetLocalStorage("raffle_tournament", JSON.stringify(updatedT));
+        await saveTournamentToFirebase(updatedT);
+      }
+
+      alert("Limpeza geral realizada com sucesso! O banco de dados está pronto para receber os dados reais.");
+    } catch (err) {
+      console.error("Erro ao realizar limpeza do banco de dados:", err);
+      alert("Houve um erro ao realizar a limpeza geral de dados. Por favor, tente novamente.");
+    }
+  };
+
   // Execute drawing
   const handleExecuteDraw = (result: DrawResult) => {
     if (!tournament) return;
@@ -1119,6 +1192,20 @@ export default function App() {
               Painel Principal
             </button>
 
+            {/* TAB: PUBLIC PARTICIPANTS */}
+            <button
+              id="tab-public-participants"
+              onClick={() => setActiveTab("public-participants")}
+              className={`px-4 py-2 rounded-lg text-xs font-black tracking-wider uppercase flex items-center gap-2 transition-all cursor-pointer border ${
+                activeTab === "public-participants"
+                  ? "bg-gold-primary text-black border-gold-primary shadow-lg glow-winner"
+                  : "text-slate-400 border-transparent hover:text-white hover:bg-dark-border"
+              }`}
+            >
+              <Users className="w-4 h-4" />
+              Candidatos & Doações
+            </button>
+
 
 
             {/* TAB: PARTICIPANTS */}
@@ -1220,6 +1307,15 @@ export default function App() {
           />
         )}
 
+        {activeTab === "public-participants" && (
+          <PublicParticipants
+            tournament={tournament}
+            participants={participants}
+            numbers={numbers}
+            isAdmin={isAdmin}
+          />
+        )}
+
 
 
         {activeTab === "participants" && (
@@ -1242,6 +1338,7 @@ export default function App() {
             currentTournament={tournament}
             onSaveTournament={handleSaveTournament}
             onCreateNewTournament={handleCreateNewTournament}
+            onWipeAllData={handleWipeAllData}
           />
         )}
 

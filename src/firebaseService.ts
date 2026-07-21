@@ -79,10 +79,12 @@ export async function loadRaffleData() {
     const tournamentDocRef = doc(db, TOURNAMENTS_COLLECTION, "active");
     const tournamentSnap = await getDoc(tournamentDocRef);
     let tournament: Tournament;
+    let isNewSetup = false;
 
     if (tournamentSnap.exists()) {
       tournament = tournamentSnap.data() as Tournament;
     } else {
+      isNewSetup = true;
       // Seed tournament
       tournament = seedTournament;
       await setDoc(tournamentDocRef, sanitizeForFirestore(tournament));
@@ -97,8 +99,8 @@ export async function loadRaffleData() {
       participantsSnap.forEach((doc) => {
         participants.push(doc.data() as Participant);
       });
-    } else {
-      // Seed participants
+    } else if (isNewSetup) {
+      // Seed participants ONLY during first setup
       participants = seedParticipants;
       const batch = writeBatch(db);
       seedParticipants.forEach((p) => {
@@ -117,8 +119,8 @@ export async function loadRaffleData() {
       numbersSnap.forEach((doc) => {
         dbNumbers.push(doc.data() as TournamentNumber);
       });
-    } else {
-      // Seed numbers (only seed the non-Available ones to save Firestore space)
+    } else if (isNewSetup) {
+      // Seed numbers ONLY during first setup (only seed the non-Available ones to save Firestore space)
       const initialSeedNums = getSeedNumbers();
       const activeSeedNums = initialSeedNums.filter(n => n.status !== NumberStatus.Disponivel);
       
@@ -170,7 +172,7 @@ export async function loadRaffleData() {
       });
       // Sort payments newest first
       payments.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    } else {
+    } else if (isNewSetup) {
       payments = seedPayments;
       const batch = writeBatch(db);
       seedPayments.forEach((pay) => {
@@ -200,7 +202,7 @@ export async function loadRaffleData() {
       });
       // Sort logs newest first
       logs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    } else {
+    } else if (isNewSetup) {
       logs = seedAuditLogs;
       const batch = writeBatch(db);
       seedAuditLogs.forEach((log) => {
@@ -257,6 +259,23 @@ export async function deleteParticipantFromFirebase(id: string) {
     await deleteDoc(docRef);
   } catch (err) {
     console.error("Error deleting participant from Firebase:", err);
+  }
+}
+
+/**
+ * Reset/Clear all participants in Firebase when resetting database.
+ */
+export async function clearAllParticipantsInFirebase() {
+  try {
+    const colRef = collection(db, PARTICIPANTS_COLLECTION);
+    const snap = await getDocs(colRef);
+    const batch = writeBatch(db);
+    snap.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+    await batch.commit();
+  } catch (err) {
+    console.error("Error clearing participants in Firebase:", err);
   }
 }
 
@@ -402,6 +421,23 @@ export async function loadTournamentHistoryFromFirebase(): Promise<TournamentHis
   } catch (err) {
     console.error("Error loading tournament history from Firebase:", err);
     return [];
+  }
+}
+
+/**
+ * Clear all tournament history in Firebase.
+ */
+export async function clearAllHistoryInFirebase() {
+  try {
+    const colRef = collection(db, HISTORY_COLLECTION);
+    const snap = await getDocs(colRef);
+    const batch = writeBatch(db);
+    snap.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+    await batch.commit();
+  } catch (err) {
+    console.error("Error clearing tournament history in Firebase:", err);
   }
 }
 
