@@ -145,12 +145,13 @@ export default function TournamentForm({
     <div className="max-w-4xl mx-auto space-y-6" id="tournament-config-view">
       
       {/* HEADER ACTION PANEL */}
-      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-xs flex flex-col sm:flex-row justify-between items-center gap-4">
+      <div className="bg-dark-card p-5 rounded-2xl border border-dark-border shadow-md flex flex-col sm:flex-row justify-between items-center gap-4">
         <div>
-          <h2 className="text-lg font-bold text-slate-800">
-            {isCreateMode ? "Novo Sorteio" : "Configuração do Torneio"}
+          <h2 className="text-lg font-bold text-white uppercase tracking-wider flex items-center gap-2">
+            <Trophy className="w-5 h-5 text-gold-primary" />
+            {isCreateMode ? "Criar Novo Sorteio" : "Configuração do Torneio"}
           </h2>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-400 mt-1">
             {isCreateMode 
               ? "Preencha os campos para resetar e gerar um torneio inédito."
               : "Visualize as regras gerais do torneio vigente ou edite as datas/informações."
@@ -169,9 +170,9 @@ export default function TournamentForm({
                   }
                 }
               }}
-              className="flex-1 sm:flex-initial px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+              className="flex-1 sm:flex-initial px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
             >
-              <AlertTriangle className="w-4 h-4 text-white" />
+              <AlertTriangle className="w-4 h-4 text-white shrink-0 animate-pulse" />
               Limpar Tudo (Dados Reais)
             </button>
           )}
@@ -183,9 +184,9 @@ export default function TournamentForm({
                 setIsCreateMode(true);
                 setIsEditing(true);
               }}
-              className="flex-1 sm:flex-initial px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
+              className="flex-1 sm:flex-initial px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer"
             >
-              <PlusCircle className="w-4 h-4" />
+              <PlusCircle className="w-4 h-4 text-white" />
               Novo Sorteio
             </button>
           )}
@@ -196,7 +197,7 @@ export default function TournamentForm({
                 setIsCreateMode(false);
                 setIsEditing(false);
               }}
-              className="flex-1 sm:flex-initial px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer"
+              className="flex-1 sm:flex-initial px-4 py-2.5 bg-dark-card-elevated hover:bg-dark-border border border-dark-border text-slate-300 rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer"
             >
               Voltar ao Atual
             </button>
@@ -205,14 +206,14 @@ export default function TournamentForm({
       </div>
 
       {/* DETAILED FORM */}
-      <div className="bg-white rounded-3xl border border-slate-100 shadow-xs overflow-hidden">
+      <div className="bg-dark-card rounded-3xl border border-dark-border shadow-lg overflow-hidden">
         
         {/* WARN BANNER FOR NEW CREATIONS */}
         {isCreateMode && (
-          <div className="bg-rose-50 border-b border-rose-100 text-rose-800 p-4 text-xs flex items-start gap-2.5">
-            <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5 animate-pulse" />
+          <div className="bg-rose-950/30 border-b border-rose-900/40 text-rose-300 p-4 text-xs flex items-start gap-2.5">
+            <AlertTriangle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5 animate-pulse" />
             <div>
-              <span className="font-bold block">Aviso de Destruição de Dados:</span>
+              <span className="font-bold block text-rose-400">Aviso de Destruição de Dados:</span>
               <span>
                 Ao submeter este formulário de Novo Torneio, a plataforma irá apagar de forma definitiva todo o histórico de participantes, compras de cotas, pagamentos e resultados do torneio anterior. Salve os comprovantes se necessário antes de confirmar.
               </span>
@@ -228,7 +229,7 @@ export default function TournamentForm({
             <div className="space-y-4">
               
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">
+                <label className="block text-xs font-black text-slate-300 uppercase tracking-wider mb-1.5">
                   Nome do Torneio <span className="text-rose-500">*</span>
                 </label>
                 <input
@@ -239,12 +240,12 @@ export default function TournamentForm({
                   placeholder="Ex: Torneio do Milhão - Edição Especial"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-hidden disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="w-full px-3.5 py-2.5 bg-dark-card-elevated border border-dark-border rounded-xl text-xs text-white focus:bg-dark-card focus:border-gold-primary focus:ring-1 focus:ring-gold-primary outline-none disabled:opacity-60 disabled:cursor-not-allowed"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Descrição</label>
+                <label className="block text-xs font-black text-slate-300 uppercase tracking-wider mb-1.5">Descrição</label>
                 <textarea
                   id="input-t-desc"
                   rows={3}
@@ -252,33 +253,33 @@ export default function TournamentForm({
                   placeholder="Escreva sobre o prêmio, transmissão ao vivo, apoios, etc."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-hidden resize-none disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="w-full p-3 bg-dark-card-elevated border border-dark-border rounded-xl text-xs text-white focus:bg-dark-card focus:border-gold-primary focus:ring-1 focus:ring-gold-primary outline-none resize-none disabled:opacity-60 disabled:cursor-not-allowed"
                 ></textarea>
               </div>
 
               {/* DATES GRID */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Abertura</label>
+                  <label className="block text-xs font-black text-slate-300 uppercase tracking-wider mb-1.5">Abertura</label>
                   <input
                     id="input-t-opendate"
                     type="date"
                     disabled={!isEditing && !isCreateMode}
                     value={openDate}
                     onChange={(e) => setOpenDate(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-hidden disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="w-full px-3 py-2 bg-dark-card-elevated border border-dark-border rounded-xl text-xs text-white focus:bg-dark-card focus:border-gold-primary focus:ring-1 focus:ring-gold-primary outline-none disabled:opacity-60 disabled:cursor-not-allowed"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Prev. Sorteio</label>
+                  <label className="block text-xs font-black text-slate-300 uppercase tracking-wider mb-1.5">Prev. Sorteio</label>
                   <input
                     id="input-t-drawdate"
                     type="date"
                     disabled={!isEditing && !isCreateMode}
                     value={drawDate}
                     onChange={(e) => setDrawDate(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-hidden disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="w-full px-3 py-2 bg-dark-card-elevated border border-dark-border rounded-xl text-xs text-white focus:bg-dark-card focus:border-gold-primary focus:ring-1 focus:ring-gold-primary outline-none disabled:opacity-60 disabled:cursor-not-allowed"
                   />
                 </div>
               </div>
@@ -290,7 +291,7 @@ export default function TournamentForm({
               
               {/* TIPO DE GRADE DE NÚMEROS */}
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                <label className="block text-xs font-black text-slate-300 uppercase tracking-wider mb-1.5">
                   Tipo de Grade de Números
                 </label>
                 <div className="grid grid-cols-2 gap-3">
@@ -299,28 +300,28 @@ export default function TournamentForm({
                     type="button"
                     disabled={!isEditing && !isCreateMode}
                     onClick={() => setIsInfinite(false)}
-                    className={`px-4 py-2.5 rounded-xl text-xs font-semibold border flex flex-col items-center justify-center transition-all ${
+                    className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider border flex flex-col items-center justify-center transition-all ${
                       !isInfinite
-                        ? "bg-indigo-600 text-white border-indigo-600 shadow-md"
-                        : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                        ? "bg-gold-primary text-black border-gold-primary shadow-lg glow-winner"
+                        : "bg-dark-card-elevated text-slate-400 border-dark-border hover:text-white hover:bg-dark-border disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
                     }`}
                   >
-                    <span className="font-bold">Grade Fixa</span>
-                    <span className="text-[10px] opacity-80 font-normal mt-0.5">Ex: de 1 a 100 cotas</span>
+                    <span>Grade Fixa</span>
+                    <span className="text-[9px] opacity-80 font-normal mt-0.5 normal-case">Ex: de 1 a 100 cotas</span>
                   </button>
                   <button
                     id="btn-grade-infinita"
                     type="button"
                     disabled={!isEditing && !isCreateMode}
                     onClick={() => setIsInfinite(true)}
-                    className={`px-4 py-2.5 rounded-xl text-xs font-semibold border flex flex-col items-center justify-center transition-all ${
+                    className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider border flex flex-col items-center justify-center transition-all ${
                       isInfinite
-                        ? "bg-indigo-600 text-white border-indigo-600 shadow-md"
-                        : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                        ? "bg-gold-primary text-black border-gold-primary shadow-lg glow-winner"
+                        : "bg-dark-card-elevated text-slate-400 border-dark-border hover:text-white hover:bg-dark-border disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
                     }`}
                   >
-                    <span className="font-bold">Números Infinitos</span>
-                    <span className="text-[10px] opacity-80 font-normal mt-0.5">Dinâmica de 1 a 999.999</span>
+                    <span>Números Infinitos</span>
+                    <span className="text-[9px] opacity-80 font-normal mt-0.5 normal-case">Dinâmica de 1 a 999.999</span>
                   </button>
                 </div>
               </div>
@@ -328,23 +329,22 @@ export default function TournamentForm({
               {!isInfinite ? (
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1">
+                    <label className="block text-xs font-black text-slate-300 uppercase tracking-wider mb-1.5">
                       Número Inicial
                     </label>
                     <input
                       id="input-t-startnum"
                       type="number"
                       required
-                      // Start and end numbers can only be defined on creation to prevent breaking existing IDs!
                       disabled={!isCreateMode} 
                       value={startNum}
                       onChange={(e) => setStartNum(parseInt(e.target.value) || 0)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-hidden disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="w-full px-3 py-2 bg-dark-card-elevated border border-dark-border rounded-xl text-xs text-white focus:bg-dark-card focus:border-gold-primary focus:ring-1 focus:ring-gold-primary outline-none disabled:opacity-60 disabled:cursor-not-allowed"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1">
+                    <label className="block text-xs font-black text-slate-300 uppercase tracking-wider mb-1.5">
                       Número Final
                     </label>
                     <input
@@ -354,13 +354,13 @@ export default function TournamentForm({
                       disabled={!isCreateMode}
                       value={endNum}
                       onChange={(e) => setEndNum(parseInt(e.target.value) || 0)}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-hidden disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="w-full px-3 py-2 bg-dark-card-elevated border border-dark-border rounded-xl text-xs text-white focus:bg-dark-card focus:border-gold-primary focus:ring-1 focus:ring-gold-primary outline-none disabled:opacity-60 disabled:cursor-not-allowed"
                     />
                   </div>
                 </div>
               ) : (
-                <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-xl text-indigo-900 text-xs">
-                  <span className="font-bold block mb-0.5">Modo Números Infinitos Ativo:</span>
+                <div className="p-3.5 bg-gold-primary/5 border border-gold-primary/20 rounded-xl text-slate-300 text-xs">
+                  <span className="font-bold text-gold-primary block mb-0.5 uppercase tracking-wider text-[10px]">Modo Números Infinitos Ativo:</span>
                   <span>
                     A grade visual de números livres é desativada. Os jogadores podem pesquisar e reservar qualquer número inteiro positivo de sua preferência (ex: 7, 777, 12345).
                   </span>
@@ -369,7 +369,7 @@ export default function TournamentForm({
 
               {/* FIXED VALUE FOR EACH NUMBER */}
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1">
+                <label className="block text-xs font-black text-slate-300 uppercase tracking-wider mb-1.5 flex items-center gap-1">
                   Preço por Cota (Valor do Número)
                   <span className="text-slate-400 cursor-help" title="Fixo por padrão em 100K (100.000)">
                     <HelpCircle className="w-3.5 h-3.5" />
@@ -381,11 +381,11 @@ export default function TournamentForm({
                     id="input-t-price"
                     type="number"
                     required
-                    disabled={true} // Strict requirement: each number costs exactly 100K (100000)
+                    disabled={true} 
                     value={price}
-                    className="w-full pl-14 pr-16 py-2.5 bg-slate-100 border border-slate-200 rounded-xl text-xs text-slate-500 font-mono outline-hidden cursor-not-allowed"
+                    className="w-full pl-14 pr-16 py-2.5 bg-dark-bg/40 border border-dark-border rounded-xl text-xs text-slate-400 font-mono outline-none cursor-not-allowed"
                   />
-                  <span className="absolute right-3.5 top-2.5 text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">
+                  <span className="absolute right-3.5 top-2.5 text-[10px] font-black uppercase tracking-wider text-gold-primary bg-gold-primary/10 border border-gold-primary/20 px-2 py-0.5 rounded-md">
                     Exibição: {formatarValor(price)}
                   </span>
                 </div>
@@ -393,7 +393,7 @@ export default function TournamentForm({
 
               {/* TOURNAMENT STATUS */}
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">
+                <label className="block text-xs font-black text-slate-300 uppercase tracking-wider mb-1.5">
                   Status do Torneio
                 </label>
                 <select
@@ -401,7 +401,7 @@ export default function TournamentForm({
                   disabled={!isEditing && !isCreateMode}
                   value={status}
                   onChange={(e) => setStatus(e.target.value as TournamentStatus)}
-                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-hidden disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                  className="w-full px-3 py-2.5 bg-dark-card-elevated border border-dark-border rounded-xl text-xs text-white focus:bg-dark-card focus:border-gold-primary focus:ring-1 focus:ring-gold-primary outline-none disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
                 >
                   <option value={TournamentStatus.Rascunho}>Rascunho</option>
                   <option value={TournamentStatus.Aberto}>Aberto</option>
@@ -414,7 +414,7 @@ export default function TournamentForm({
 
               {/* TOURNAMENT NOTES */}
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Observações do Torneio</label>
+                <label className="block text-xs font-black text-slate-300 uppercase tracking-wider mb-1.5">Observações do Torneio</label>
                 <textarea
                   id="input-t-notes"
                   rows={2}
@@ -422,7 +422,7 @@ export default function TournamentForm({
                   placeholder="Observações administrativas internas."
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-hidden resize-none disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="w-full p-3 bg-dark-card-elevated border border-dark-border rounded-xl text-xs text-white focus:bg-dark-card focus:border-gold-primary focus:ring-1 focus:ring-gold-primary outline-none resize-none disabled:opacity-60 disabled:cursor-not-allowed"
                 ></textarea>
               </div>
 
@@ -431,14 +431,14 @@ export default function TournamentForm({
           </div>
 
           {/* FORM FOOTER ACTIONS */}
-          <div className="pt-5 border-t border-slate-100 flex justify-between items-center">
+          <div className="pt-5 border-t border-dark-border flex justify-between items-center">
             
             {!isEditing && !isCreateMode ? (
               <button
                 id="btn-edit-tournament-trigger"
                 type="button"
                 onClick={() => setIsEditing(true)}
-                className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+                className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-black font-black uppercase tracking-wider text-xs rounded-xl transition-colors cursor-pointer"
               >
                 Editar Informações
               </button>
@@ -450,24 +450,24 @@ export default function TournamentForm({
                     setIsEditing(false);
                     setIsCreateMode(false);
                   }}
-                  className="flex-1 sm:flex-initial px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+                  className="flex-1 sm:flex-initial px-5 py-2.5 bg-dark-card-elevated hover:bg-dark-border border border-dark-border text-slate-300 rounded-xl text-xs font-black uppercase tracking-wider transition-colors cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   id="btn-save-tournament"
                   type="submit"
-                  className="flex-1 sm:flex-initial px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  className="flex-1 sm:flex-initial px-5 py-2.5 bg-gold-primary hover:bg-gold-dark text-black font-black uppercase tracking-wider text-xs rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer glow-winner"
                 >
-                  <Save className="w-4 h-4" />
+                  <Save className="w-4 h-4 text-black" />
                   {isCreateMode ? "Criar Torneio" : "Salvar Alterações"}
                 </button>
               </div>
             )}
             
             {!isEditing && !isCreateMode && (
-              <span className="text-[11px] text-slate-400 font-mono flex items-center gap-1">
-                <Trophy className="w-3.5 h-3.5 text-indigo-500" />
+              <span className="text-[10px] text-slate-500 font-mono font-bold flex items-center gap-1 uppercase tracking-wider">
+                <Trophy className="w-3.5 h-3.5 text-gold-primary" />
                 Torneio ID: {currentTournament?.id}
               </span>
             )}

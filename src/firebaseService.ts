@@ -441,3 +441,40 @@ export async function clearAllHistoryInFirebase() {
   }
 }
 
+/**
+ * Loads the secondary admin if registered.
+ */
+export async function getSecondaryAdminFromFirebase(): Promise<any | null> {
+  try {
+    const docRef = doc(db, "settings", "secondary_admin");
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+      return snap.data();
+    }
+    return null;
+  } catch (err) {
+    console.error("Error loading secondary admin from Firebase:", err);
+    return null;
+  }
+}
+
+/**
+ * Registers the secondary admin in Firebase (only works once).
+ */
+export async function saveSecondaryAdminToFirebase(adminData: any): Promise<boolean> {
+  try {
+    const docRef = doc(db, "settings", "secondary_admin");
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+      // Already exists!
+      return false;
+    }
+    await setDoc(docRef, sanitizeForFirestore(adminData));
+    return true;
+  } catch (err) {
+    console.error("Error saving secondary admin to Firebase:", err);
+    return false;
+  }
+}
+
+

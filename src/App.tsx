@@ -39,6 +39,8 @@ import {
   loadTournamentHistoryFromFirebase,
   clearAllParticipantsInFirebase,
   clearAllHistoryInFirebase,
+  getSecondaryAdminFromFirebase,
+  saveSecondaryAdminToFirebase,
 } from "./firebaseService";
 import { formatarValor, padronizarNumero, gerarHash } from "./utils";
 import Dashboard from "./components/Dashboard";
@@ -48,6 +50,7 @@ import RaffleDraw from "./components/RaffleDraw";
 import AuditLogList from "./components/AuditLogList";
 import HistoryList from "./components/HistoryList";
 import PublicParticipants from "./components/PublicParticipants";
+import AdminRegistration from "./components/AdminRegistration";
 
 import {
   Trophy,
@@ -77,6 +80,11 @@ export default function App() {
   const [isAdmin, setIsAdmin] = useState<boolean>(() => {
     return localStorage.getItem("raffle_is_admin") === "true";
   });
+  const [currentAdminUser, setCurrentAdminUser] = useState<string>(() => {
+    return localStorage.getItem("raffle_admin_user") || "Administrador";
+  });
+  const [secondaryAdmin, setSecondaryAdmin] = useState<any | null>(null);
+
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminPasswordInput, setAdminPasswordInput] = useState("");
   const [adminUsernameInput, setAdminUsernameInput] = useState("");
@@ -151,6 +159,16 @@ export default function App() {
 
     // Secondary load from Firebase Firestore
     async function syncWithFirebase() {
+      const dbAdmin = await getSecondaryAdminFromFirebase();
+      if (dbAdmin) {
+        setSecondaryAdmin(dbAdmin);
+      }
+
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("reg-admin") === "true") {
+        setActiveTab("admin-registration");
+      }
+
       const data = await loadRaffleData();
       if (data) {
         setTournament(data.tournament);
@@ -181,7 +199,7 @@ export default function App() {
   const createAuditLog = (action: string, entity: string, entityId: string, oldData?: any, newData?: any) => {
     const newLog: AuditLog = {
       id: `log_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
-      user_id: "Administrador",
+      user_id: currentAdminUser,
       action,
       entity,
       entity_id: entityId,
@@ -190,6 +208,29 @@ export default function App() {
       created_at: new Date().toISOString(),
     };
 
+    const updatedLogs = [newLog, ...logs];
+    setLogs(updatedLogs);
+    safeSetLocalStorage("raffle_audit_logs", JSON.stringify(updatedLogs));
+    saveAuditLogToFirebase(newLog);
+  };
+
+  const handleRegistrationSuccess = (username: string, adminData: any) => {
+    setSecondaryAdmin(adminData);
+    setIsAdmin(true);
+    setCurrentAdminUser(username);
+    safeSetLocalStorage("raffle_is_admin", "true");
+    safeSetLocalStorage("raffle_admin_user", username);
+    setActiveTab("dashboard");
+    const newLog: AuditLog = {
+      id: `log_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+      user_id: username,
+      action: "Criação de administrador secundário",
+      entity: "admin",
+      entity_id: username,
+      old_data: undefined,
+      new_data: JSON.stringify({ username }),
+      created_at: new Date().toISOString(),
+    };
     const updatedLogs = [newLog, ...logs];
     setLogs(updatedLogs);
     safeSetLocalStorage("raffle_audit_logs", JSON.stringify(updatedLogs));
@@ -341,7 +382,7 @@ export default function App() {
           ...pay,
           status: PaymentStatus.Confirmado,
           paid_amount: pay.expected_amount, // Approved full amount for simplicity
-          confirmed_by: "Administrador",
+          confirmed_by: currentAdminUser,
           confirmed_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         };
@@ -409,7 +450,7 @@ export default function App() {
           ...p,
           status: PaymentStatus.Confirmado,
           paid_amount: p.expected_amount,
-          confirmed_by: "Administrador",
+          confirmed_by: currentAdminUser,
           confirmed_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         };
@@ -509,7 +550,7 @@ export default function App() {
             status: PaymentStatus.Confirmado,
             numbers: approvedForThisPayment,
             paid_amount: approvedForThisPayment.length * tournament.number_price,
-            confirmed_by: "Administrador",
+            confirmed_by: currentAdminUser,
             confirmed_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           };
@@ -1145,7 +1186,9 @@ export default function App() {
                     id="btn-admin-logout"
                     onClick={() => {
                       setIsAdmin(false);
+                      setCurrentAdminUser("Administrador");
                       safeSetLocalStorage("raffle_is_admin", "false");
+                      safeSetLocalStorage("raffle_admin_user", "Administrador");
                       setActiveTab("dashboard");
                     }}
                     className="ml-2 text-[10px] font-black uppercase text-slate-400 hover:text-white transition-colors cursor-pointer border border-dark-border-light bg-dark-bg/50 px-2 py-0.5 rounded-md"
@@ -1367,6 +1410,13 @@ export default function App() {
           />
         )}
 
+        {activeTab === "admin-registration" && (
+          <AdminRegistration
+            onRegistrationSuccess={handleRegistrationSuccess}
+            existingSecondaryAdmin={secondaryAdmin}
+          />
+        )}
+
       </main>
 
       {/* ADMIN LOGIN MODAL */}
@@ -1399,12 +1449,19 @@ export default function App() {
                 const username = adminUsernameInput.trim();
                 const password = adminPasswordInput.trim();
                 
-                if (
-                  (username === "admin321" && password === "Hiwry#1010") ||
-                  ((username === "admin" || username === "") && (password === "admin" || password === "admin123"))
-                ) {
+                const isMasterAdmin = (username === "admin321" && password === "Hiwry#1010") ||
+                  ((username === "admin" || username === "") && (password === "admin" || password === "admin123"));
+
+                const isSecondaryAdmin = secondaryAdmin && 
+                  username === secondaryAdmin.username && 
+                  password === secondaryAdmin.password;
+
+                if (isMasterAdmin || isSecondaryAdmin) {
+                  const loggedUser = username || "admin";
                   setIsAdmin(true);
+                  setCurrentAdminUser(loggedUser);
                   safeSetLocalStorage("raffle_is_admin", "true");
+                  safeSetLocalStorage("raffle_admin_user", loggedUser);
                   setShowAdminLogin(false);
                   setAdminUsernameInput("");
                   setAdminPasswordInput("");
@@ -1459,6 +1516,22 @@ export default function App() {
               >
                 Autenticar
               </button>
+
+              {!secondaryAdmin && (
+                <div className="text-center pt-2">
+                  <button
+                    id="btn-register-secondary-link"
+                    type="button"
+                    onClick={() => {
+                      setShowAdminLogin(false);
+                      setActiveTab("admin-registration");
+                    }}
+                    className="text-[11px] text-gold-primary hover:underline font-black uppercase tracking-widest cursor-pointer"
+                  >
+                    Registrar Segundo Administrador
+                  </button>
+                </div>
+              )}
             </form>
           </div>
         </div>
