@@ -14,6 +14,7 @@ import {
   TournamentStatus,
   NumberStatus,
   PaymentStatus,
+  TournamentHistoryEntry,
 } from "./types";
 import {
   seedTournament,
@@ -34,14 +35,16 @@ import {
   saveDrawResultToFirebase,
   saveAuditLogToFirebase,
   clearAllAuditLogsInFirebase,
+  saveTournamentHistoryToFirebase,
+  loadTournamentHistoryFromFirebase,
 } from "./firebaseService";
 import { formatarValor, padronizarNumero, gerarHash } from "./utils";
 import Dashboard from "./components/Dashboard";
-import NumberGrid from "./components/NumberGrid";
 import ParticipantList from "./components/ParticipantList";
 import TournamentForm from "./components/TournamentForm";
 import RaffleDraw from "./components/RaffleDraw";
 import AuditLogList from "./components/AuditLogList";
+import HistoryList from "./components/HistoryList";
 
 import {
   Trophy,
@@ -56,6 +59,14 @@ import {
   ShieldAlert,
 } from "lucide-react";
 
+function safeSetLocalStorage(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value);
+  } catch (error) {
+    console.warn("[LocalStorage] Quota exceeded or disabled:", error);
+  }
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<string>("dashboard");
 
@@ -65,6 +76,7 @@ export default function App() {
   });
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminPasswordInput, setAdminPasswordInput] = useState("");
+  const [adminUsernameInput, setAdminUsernameInput] = useState("");
   const [loginError, setLoginError] = useState("");
 
   // Core database state
@@ -74,6 +86,7 @@ export default function App() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [drawResult, setDrawResult] = useState<DrawResult | null>(null);
   const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [history, setHistory] = useState<TournamentHistoryEntry[]>([]);
 
   // 1. Initial hydration from LocalStorage or pre-load from SeedData with Firestore sync
   useEffect(() => {
@@ -83,19 +96,26 @@ export default function App() {
     const cachedPayments = localStorage.getItem("raffle_payments");
     const cachedDraw = localStorage.getItem("raffle_draw_result");
     const cachedLogs = localStorage.getItem("raffle_audit_logs");
+    const cachedHistory = localStorage.getItem("raffle_tournament_history");
+
+    if (cachedHistory) {
+      setHistory(JSON.parse(cachedHistory));
+    } else {
+      setHistory([]);
+    }
 
     if (cachedTournament) {
       setTournament(JSON.parse(cachedTournament));
     } else {
       setTournament(seedTournament);
-      localStorage.setItem("raffle_tournament", JSON.stringify(seedTournament));
+      safeSetLocalStorage("raffle_tournament", JSON.stringify(seedTournament));
     }
 
     if (cachedParticipants) {
       setParticipants(JSON.parse(cachedParticipants));
     } else {
       setParticipants(seedParticipants);
-      localStorage.setItem("raffle_participants", JSON.stringify(seedParticipants));
+      safeSetLocalStorage("raffle_participants", JSON.stringify(seedParticipants));
     }
 
     if (cachedNumbers) {
@@ -103,14 +123,14 @@ export default function App() {
     } else {
       const initialNums = getSeedNumbers();
       setNumbers(initialNums);
-      localStorage.setItem("raffle_numbers", JSON.stringify(initialNums));
+      safeSetLocalStorage("raffle_numbers", JSON.stringify(initialNums));
     }
 
     if (cachedPayments) {
       setPayments(JSON.parse(cachedPayments));
     } else {
       setPayments(seedPayments);
-      localStorage.setItem("raffle_payments", JSON.stringify(seedPayments));
+      safeSetLocalStorage("raffle_payments", JSON.stringify(seedPayments));
     }
 
     if (cachedDraw) {
@@ -123,7 +143,7 @@ export default function App() {
       setLogs(JSON.parse(cachedLogs));
     } else {
       setLogs(seedAuditLogs);
-      localStorage.setItem("raffle_audit_logs", JSON.stringify(seedAuditLogs));
+      safeSetLocalStorage("raffle_audit_logs", JSON.stringify(seedAuditLogs));
     }
 
     // Secondary load from Firebase Firestore
@@ -137,12 +157,18 @@ export default function App() {
         setDrawResult(data.drawResult);
         setLogs(data.logs);
 
-        localStorage.setItem("raffle_tournament", JSON.stringify(data.tournament));
-        localStorage.setItem("raffle_participants", JSON.stringify(data.participants));
-        localStorage.setItem("raffle_numbers", JSON.stringify(data.numbers));
-        localStorage.setItem("raffle_payments", JSON.stringify(data.payments));
-        localStorage.setItem("raffle_draw_result", JSON.stringify(data.drawResult));
-        localStorage.setItem("raffle_audit_logs", JSON.stringify(data.logs));
+        safeSetLocalStorage("raffle_tournament", JSON.stringify(data.tournament));
+        safeSetLocalStorage("raffle_participants", JSON.stringify(data.participants));
+        safeSetLocalStorage("raffle_numbers", JSON.stringify(data.numbers));
+        safeSetLocalStorage("raffle_payments", JSON.stringify(data.payments));
+        safeSetLocalStorage("raffle_draw_result", JSON.stringify(data.drawResult));
+        safeSetLocalStorage("raffle_audit_logs", JSON.stringify(data.logs));
+      }
+
+      const fetchedHistory = await loadTournamentHistoryFromFirebase();
+      if (fetchedHistory) {
+        setHistory(fetchedHistory);
+        safeSetLocalStorage("raffle_tournament_history", JSON.stringify(fetchedHistory));
       }
     }
     syncWithFirebase();
@@ -163,7 +189,7 @@ export default function App() {
 
     const updatedLogs = [newLog, ...logs];
     setLogs(updatedLogs);
-    localStorage.setItem("raffle_audit_logs", JSON.stringify(updatedLogs));
+    safeSetLocalStorage("raffle_audit_logs", JSON.stringify(updatedLogs));
     saveAuditLogToFirebase(newLog);
   };
 
@@ -193,16 +219,18 @@ export default function App() {
       };
       updatedParticipants.push(pObj);
       setParticipants(updatedParticipants);
-      localStorage.setItem("raffle_participants", JSON.stringify(updatedParticipants));
+      safeSetLocalStorage("raffle_participants", JSON.stringify(updatedParticipants));
       saveParticipantToFirebase(pObj);
       createAuditLog("Criação de participante", "participant", pObj.id, null, pObj);
     }
 
     // B. Update selected numbers to Reserved
-    const updatedNumbers = numbers.map((num) => {
-      if (selectedNums.includes(num.number)) {
-        return {
-          ...num,
+    const updatedNumbers = [...numbers];
+    selectedNums.forEach((num) => {
+      const idx = updatedNumbers.findIndex((n) => n.number === num);
+      if (idx !== -1) {
+        updatedNumbers[idx] = {
+          ...updatedNumbers[idx],
           participant_id: pObj!.id,
           participant_nickname: pObj!.nickname,
           participant_contact: pObj!.contact_number,
@@ -211,12 +239,26 @@ export default function App() {
           reserved_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         };
+      } else {
+        updatedNumbers.push({
+          id: `num_${tournament.id}_${num}`,
+          tournament_id: tournament.id,
+          participant_id: pObj!.id,
+          number: num,
+          price: tournament.number_price,
+          status: NumberStatus.Reservado,
+          payment_status: PaymentStatus.Pendente,
+          participant_nickname: pObj!.nickname,
+          participant_contact: pObj!.contact_number,
+          reserved_at: new Date().toISOString(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
       }
-      return num;
     });
 
     setNumbers(updatedNumbers);
-    localStorage.setItem("raffle_numbers", JSON.stringify(updatedNumbers));
+    safeSetLocalStorage("raffle_numbers", JSON.stringify(updatedNumbers));
     
     // Save numbers to Firebase
     const changedNumbers = updatedNumbers.filter(num => selectedNums.includes(num.number));
@@ -243,7 +285,7 @@ export default function App() {
 
     const updatedPayments = [newPayment, ...payments];
     setPayments(updatedPayments);
-    localStorage.setItem("raffle_payments", JSON.stringify(updatedPayments));
+    safeSetLocalStorage("raffle_payments", JSON.stringify(updatedPayments));
     savePaymentToFirebase(newPayment);
 
     // D. Write logs
@@ -282,7 +324,7 @@ export default function App() {
     });
 
     setNumbers(updatedNumbers);
-    localStorage.setItem("raffle_numbers", JSON.stringify(updatedNumbers));
+    safeSetLocalStorage("raffle_numbers", JSON.stringify(updatedNumbers));
     
     // Save updated number to Firebase
     const changedNum = updatedNumbers.find(n => n.id === numberId);
@@ -307,7 +349,7 @@ export default function App() {
     });
 
     setPayments(updatedPayments);
-    localStorage.setItem("raffle_payments", JSON.stringify(updatedPayments));
+    safeSetLocalStorage("raffle_payments", JSON.stringify(updatedPayments));
 
     // C. Trigger Audit Logs
     createAuditLog(
@@ -329,7 +371,7 @@ export default function App() {
       updated_at: new Date().toISOString(),
     };
     setTournament(updatedTournament);
-    localStorage.setItem("raffle_tournament", JSON.stringify(updatedTournament));
+    safeSetLocalStorage("raffle_tournament", JSON.stringify(updatedTournament));
     saveTournamentToFirebase(updatedTournament);
   };
 
@@ -351,7 +393,7 @@ export default function App() {
       return n;
     });
     setNumbers(updatedNumbers);
-    localStorage.setItem("raffle_numbers", JSON.stringify(updatedNumbers));
+    safeSetLocalStorage("raffle_numbers", JSON.stringify(updatedNumbers));
     
     // Save changed numbers of the participant
     const changedNumbers = updatedNumbers.filter(n => n.participant_id === participantId && n.status === NumberStatus.Pago);
@@ -374,7 +416,7 @@ export default function App() {
       return p;
     });
     setPayments(updatedPayments);
-    localStorage.setItem("raffle_payments", JSON.stringify(updatedPayments));
+    safeSetLocalStorage("raffle_payments", JSON.stringify(updatedPayments));
 
     // C. Re-calculate tournament pool
     const paidCount = updatedNumbers.filter(n => n.status === NumberStatus.Pago).length;
@@ -387,7 +429,7 @@ export default function App() {
       updated_at: new Date().toISOString(),
     };
     setTournament(updatedTournament);
-    localStorage.setItem("raffle_tournament", JSON.stringify(updatedTournament));
+    safeSetLocalStorage("raffle_tournament", JSON.stringify(updatedTournament));
     saveTournamentToFirebase(updatedTournament);
 
     // D. Log
@@ -410,15 +452,17 @@ export default function App() {
 
     // A. Update numbers state
     const updatedNumbers = numbers.map((n) => {
-      if (n.participant_id === participantId && n.status === NumberStatus.Reservado) {
+      if (n.participant_id === participantId) {
         if (numbersToApprove.includes(n.number)) {
-          return {
-            ...n,
-            status: NumberStatus.Pago,
-            payment_status: PaymentStatus.Confirmado,
-            paid_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          };
+          if (n.status === NumberStatus.Reservado || n.status === NumberStatus.Pago) {
+            return {
+              ...n,
+              status: NumberStatus.Pago,
+              payment_status: PaymentStatus.Confirmado,
+              paid_at: n.paid_at || new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            };
+          }
         } else if (numbersToRelease.includes(n.number)) {
           return {
             ...n,
@@ -435,17 +479,19 @@ export default function App() {
       }
       return n;
     });
-    setNumbers(updatedNumbers);
-    localStorage.setItem("raffle_numbers", JSON.stringify(updatedNumbers));
+
+    const finalNumbers = tournament.is_infinite
+      ? updatedNumbers.filter((n) => n.status !== NumberStatus.Disponivel)
+      : updatedNumbers;
+
+    setNumbers(finalNumbers);
+    safeSetLocalStorage("raffle_numbers", JSON.stringify(finalNumbers));
 
     // Save changed numbers to Firestore
-    const changedNumbers = updatedNumbers.filter(
-      (n) => n.participant_id === participantId || (n.status === NumberStatus.Disponivel && numbersToRelease.includes(n.number))
-    ).filter(n => {
-      // Find the ones we just touched
-      if (n.status === NumberStatus.Pago && numbersToApprove.includes(n.number)) return true;
-      if (n.status === NumberStatus.Disponivel && numbersToRelease.includes(n.number)) return true;
-      return false;
+    const changedNumbers = updatedNumbers.filter((n) => {
+      const oldNum = numbers.find((old) => old.id === n.id);
+      if (!oldNum) return n.status !== NumberStatus.Disponivel; // Save if not Disponivel
+      return oldNum.status !== n.status || oldNum.participant_id !== n.participant_id;
     });
     saveNumbersToFirebase(changedNumbers);
 
@@ -480,10 +526,10 @@ export default function App() {
       return p;
     });
     setPayments(updatedPayments);
-    localStorage.setItem("raffle_payments", JSON.stringify(updatedPayments));
+    safeSetLocalStorage("raffle_payments", JSON.stringify(updatedPayments));
 
     // C. Re-calculate tournament pool metrics
-    const paidCount = updatedNumbers.filter(n => n.status === NumberStatus.Pago).length;
+    const paidCount = finalNumbers.filter(n => n.status === NumberStatus.Pago).length;
     const newConfirmedAmount = paidCount * tournament.number_price;
 
     const updatedTournament = {
@@ -493,7 +539,7 @@ export default function App() {
       updated_at: new Date().toISOString(),
     };
     setTournament(updatedTournament);
-    localStorage.setItem("raffle_tournament", JSON.stringify(updatedTournament));
+    safeSetLocalStorage("raffle_tournament", JSON.stringify(updatedTournament));
     saveTournamentToFirebase(updatedTournament);
 
     // D. Log audit trail
@@ -531,7 +577,7 @@ export default function App() {
       return n;
     });
     setNumbers(updatedNumbers);
-    localStorage.setItem("raffle_numbers", JSON.stringify(updatedNumbers));
+    safeSetLocalStorage("raffle_numbers", JSON.stringify(updatedNumbers));
     
     // Save updated number (Available = deleted) to Firebase
     const changedNum = updatedNumbers.find(n => n.id === numberId);
@@ -548,7 +594,7 @@ export default function App() {
       updated_at: new Date().toISOString(),
     };
     setTournament(updatedTournament);
-    localStorage.setItem("raffle_tournament", JSON.stringify(updatedTournament));
+    safeSetLocalStorage("raffle_tournament", JSON.stringify(updatedTournament));
     saveTournamentToFirebase(updatedTournament);
 
     // C. Cancel associated pending payment
@@ -566,7 +612,7 @@ export default function App() {
       return p;
     });
     setPayments(updatedPayments);
-    localStorage.setItem("raffle_payments", JSON.stringify(updatedPayments));
+    safeSetLocalStorage("raffle_payments", JSON.stringify(updatedPayments));
 
     // D. Audit log
     createAuditLog(
@@ -599,7 +645,7 @@ export default function App() {
       return n;
     });
     setNumbers(updatedNumbers);
-    localStorage.setItem("raffle_numbers", JSON.stringify(updatedNumbers));
+    safeSetLocalStorage("raffle_numbers", JSON.stringify(updatedNumbers));
     
     // Save updated numbers back to Disponivel in Firebase (deletes from db)
     const changedNumbers = numbers.filter(n => n.participant_id === participantId && n.status === NumberStatus.Reservado).map(n => ({
@@ -623,7 +669,7 @@ export default function App() {
       return p;
     });
     setPayments(updatedPayments);
-    localStorage.setItem("raffle_payments", JSON.stringify(updatedPayments));
+    safeSetLocalStorage("raffle_payments", JSON.stringify(updatedPayments));
 
     // C. Log
     createAuditLog(
@@ -643,10 +689,12 @@ export default function App() {
     if (!pObj) return;
 
     // A. Update numbers to Reserved for this participant
-    const updatedNumbers = numbers.map((n) => {
-      if (numbersToAdd.includes(n.number)) {
-        return {
-          ...n,
+    const updatedNumbers = [...numbers];
+    numbersToAdd.forEach((num) => {
+      const idx = updatedNumbers.findIndex((n) => n.number === num);
+      if (idx !== -1) {
+        updatedNumbers[idx] = {
+          ...updatedNumbers[idx],
           participant_id: pObj.id,
           participant_nickname: pObj.nickname,
           participant_contact: pObj.contact_number,
@@ -655,11 +703,25 @@ export default function App() {
           reserved_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         };
+      } else {
+        updatedNumbers.push({
+          id: `num_${tournament.id}_${num}`,
+          tournament_id: tournament.id,
+          participant_id: pObj.id,
+          number: num,
+          price: tournament.number_price,
+          status: NumberStatus.Reservado,
+          payment_status: PaymentStatus.Pendente,
+          participant_nickname: pObj.nickname,
+          participant_contact: pObj.contact_number,
+          reserved_at: new Date().toISOString(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
       }
-      return n;
     });
     setNumbers(updatedNumbers);
-    localStorage.setItem("raffle_numbers", JSON.stringify(updatedNumbers));
+    safeSetLocalStorage("raffle_numbers", JSON.stringify(updatedNumbers));
     
     // Save numbers to Firebase
     const changedNumbers = updatedNumbers.filter(n => numbersToAdd.includes(n.number));
@@ -683,7 +745,7 @@ export default function App() {
     
     const updatedPayments = [newPayment, ...payments];
     setPayments(updatedPayments);
-    localStorage.setItem("raffle_payments", JSON.stringify(updatedPayments));
+    safeSetLocalStorage("raffle_payments", JSON.stringify(updatedPayments));
     savePaymentToFirebase(newPayment);
 
     // C. Log
@@ -709,7 +771,7 @@ export default function App() {
 
     const updated = [...participants, newP];
     setParticipants(updated);
-    localStorage.setItem("raffle_participants", JSON.stringify(updated));
+    safeSetLocalStorage("raffle_participants", JSON.stringify(updated));
     saveParticipantToFirebase(newP);
 
     createAuditLog("Criação de participante", "participant", newP.id, null, newP);
@@ -733,7 +795,7 @@ export default function App() {
     });
 
     setParticipants(updated);
-    localStorage.setItem("raffle_participants", JSON.stringify(updated));
+    safeSetLocalStorage("raffle_participants", JSON.stringify(updated));
 
     // Propagate updated nickname and contact to the active tickets
     const updatedNumbers = numbers.map((n) => {
@@ -747,7 +809,7 @@ export default function App() {
       return n;
     });
     setNumbers(updatedNumbers);
-    localStorage.setItem("raffle_numbers", JSON.stringify(updatedNumbers));
+    safeSetLocalStorage("raffle_numbers", JSON.stringify(updatedNumbers));
     
     // Save updated active tickets to Firebase
     const changedNumbers = updatedNumbers.filter(n => n.participant_id === id);
@@ -760,7 +822,7 @@ export default function App() {
     const oldP = participants.find((p) => p.id === id);
     const updated = participants.filter((p) => p.id !== id);
     setParticipants(updated);
-    localStorage.setItem("raffle_participants", JSON.stringify(updated));
+    safeSetLocalStorage("raffle_participants", JSON.stringify(updated));
     deleteParticipantFromFirebase(id);
 
     createAuditLog("Exclusão de participante", "participant", id, oldP, null);
@@ -769,8 +831,40 @@ export default function App() {
   // Saved tournament configurations
   const handleSaveTournament = (updatedTournament: Tournament) => {
     setTournament(updatedTournament);
-    localStorage.setItem("raffle_tournament", JSON.stringify(updatedTournament));
+    safeSetLocalStorage("raffle_tournament", JSON.stringify(updatedTournament));
     saveTournamentToFirebase(updatedTournament);
+
+    // If switched to infinite numbers, filter out Disponivel ones from local state to prevent UI lag / rendering all numbers
+    if (updatedTournament.is_infinite) {
+      const activeNumbers = numbers.filter((n) => n.status !== NumberStatus.Disponivel);
+      setNumbers(activeNumbers);
+      safeSetLocalStorage("raffle_numbers", JSON.stringify(activeNumbers));
+    } else {
+      // If switched from infinite to finite, recreate the available numbers within start/end range
+      const rebuiltNumbers: TournamentNumber[] = [];
+      const start = updatedTournament.number_start || 1;
+      const end = updatedTournament.number_end || 100;
+      for (let i = start; i <= end; i++) {
+        const existing = numbers.find((n) => n.number === i);
+        if (existing) {
+          rebuiltNumbers.push(existing);
+        } else {
+          rebuiltNumbers.push({
+            id: `num_${updatedTournament.id}_${i}`,
+            tournament_id: updatedTournament.id,
+            participant_id: "",
+            number: i,
+            price: updatedTournament.number_price,
+            status: NumberStatus.Disponivel,
+            payment_status: PaymentStatus.Pendente,
+            created_at: updatedTournament.created_at || new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          });
+        }
+      }
+      setNumbers(rebuiltNumbers);
+      safeSetLocalStorage("raffle_numbers", JSON.stringify(rebuiltNumbers));
+    }
 
     createAuditLog(
       "Alteração das regras do torneio",
@@ -791,7 +885,8 @@ export default function App() {
     status: TournamentStatus,
     openDate: string,
     drawDate: string,
-    notes?: string
+    notes?: string,
+    is_infinite?: boolean
   ) => {
     const newT: Tournament = {
       id: `t_${Date.now()}`,
@@ -806,37 +901,40 @@ export default function App() {
       confirmed_amount: 0,
       prize_amount: 0,
       notes,
+      is_infinite: !!is_infinite,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
 
     // A. Save tournament
     setTournament(newT);
-    localStorage.setItem("raffle_tournament", JSON.stringify(newT));
+    safeSetLocalStorage("raffle_tournament", JSON.stringify(newT));
     saveTournamentToFirebase(newT);
 
     // B. Reset numbers grid
     const freshNumbers: TournamentNumber[] = [];
-    for (let i = startNum; i <= endNum; i++) {
-      freshNumbers.push({
-        id: `num_${newT.id}_${i}`,
-        tournament_id: newT.id,
-        participant_id: "",
-        number: i,
-        price,
-        status: NumberStatus.Disponivel,
-        payment_status: PaymentStatus.Pendente,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      });
+    if (!is_infinite) {
+      for (let i = startNum; i <= endNum; i++) {
+        freshNumbers.push({
+          id: `num_${newT.id}_${i}`,
+          tournament_id: newT.id,
+          participant_id: "",
+          number: i,
+          price,
+          status: NumberStatus.Disponivel,
+          payment_status: PaymentStatus.Pendente,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+      }
     }
     setNumbers(freshNumbers);
-    localStorage.setItem("raffle_numbers", JSON.stringify(freshNumbers));
+    safeSetLocalStorage("raffle_numbers", JSON.stringify(freshNumbers));
     clearAllNumbersInFirebase(); // Available numbers are not kept in DB
 
     // C. Reset payments & drawings
     setPayments([]);
-    localStorage.setItem("raffle_payments", JSON.stringify([]));
+    safeSetLocalStorage("raffle_payments", JSON.stringify([]));
     clearAllPaymentsInFirebase();
 
     setDrawResult(null);
@@ -853,7 +951,7 @@ export default function App() {
 
     // A. Save Draw Result
     setDrawResult(result);
-    localStorage.setItem("raffle_draw_result", JSON.stringify(result));
+    safeSetLocalStorage("raffle_draw_result", JSON.stringify(result));
     saveDrawResultToFirebase(result);
 
     // B. Finalize active tournament status
@@ -865,8 +963,27 @@ export default function App() {
       updated_at: new Date().toISOString(),
     };
     setTournament(finalizedT);
-    localStorage.setItem("raffle_tournament", JSON.stringify(finalizedT));
+    safeSetLocalStorage("raffle_tournament", JSON.stringify(finalizedT));
     saveTournamentToFirebase(finalizedT);
+
+    // Save to Tournament History
+    const historyEntry: TournamentHistoryEntry = {
+      id: `hist_${tournament.id}`,
+      tournament_id: tournament.id,
+      name: tournament.name,
+      description: tournament.description,
+      winning_number: result.winning_number,
+      winner_nickname: result.winner_nickname,
+      winner_contact: result.winner_contact,
+      confirmed_amount: finalizedT.confirmed_amount,
+      prize_amount: finalizedT.prize_amount,
+      finished_at: finalizedT.finished_at || new Date().toISOString(),
+      is_infinite: tournament.is_infinite,
+    };
+    const updatedHistory = [historyEntry, ...history];
+    setHistory(updatedHistory);
+    safeSetLocalStorage("raffle_tournament_history", JSON.stringify(updatedHistory));
+    saveTournamentHistoryToFirebase(historyEntry);
 
     // C. Lock numbers list to prevent modifications
     const lockedNumbers = numbers.map((n) => {
@@ -877,7 +994,7 @@ export default function App() {
       return n;
     });
     setNumbers(lockedNumbers);
-    localStorage.setItem("raffle_numbers", JSON.stringify(lockedNumbers));
+    safeSetLocalStorage("raffle_numbers", JSON.stringify(lockedNumbers));
     
     // Save winning number with its finalized stats to Firebase
     const winningNumObj = lockedNumbers.find(n => n.number === result.winning_number);
@@ -897,7 +1014,7 @@ export default function App() {
   // Clear logs helper
   const handleClearLogs = () => {
     setLogs([]);
-    localStorage.setItem("raffle_audit_logs", JSON.stringify([]));
+    safeSetLocalStorage("raffle_audit_logs", JSON.stringify([]));
     clearAllAuditLogsInFirebase();
   };
 
@@ -955,7 +1072,7 @@ export default function App() {
                     id="btn-admin-logout"
                     onClick={() => {
                       setIsAdmin(false);
-                      localStorage.setItem("raffle_is_admin", "false");
+                      safeSetLocalStorage("raffle_is_admin", "false");
                       setActiveTab("dashboard");
                     }}
                     className="ml-2 text-[10px] font-black uppercase text-slate-400 hover:text-white transition-colors cursor-pointer border border-dark-border-light bg-dark-bg/50 px-2 py-0.5 rounded-md"
@@ -1002,19 +1119,7 @@ export default function App() {
               Painel Principal
             </button>
 
-            {/* TAB: NUMBER GRID */}
-            <button
-              id="tab-numbers-grid"
-              onClick={() => setActiveTab("numbers-grid")}
-              className={`px-4 py-2 rounded-lg text-xs font-black tracking-wider uppercase flex items-center gap-2 transition-all cursor-pointer border ${
-                activeTab === "numbers-grid"
-                  ? "bg-gold-primary text-black border-gold-primary shadow-lg glow-winner"
-                  : "text-slate-400 border-transparent hover:text-white hover:bg-dark-border"
-              }`}
-            >
-              <Grid className="w-4 h-4" />
-              Grade de Números
-            </button>
+
 
             {/* TAB: PARTICIPANTS */}
             {isAdmin && (
@@ -1067,6 +1172,20 @@ export default function App() {
               </button>
             )}
 
+            {/* TAB: TOURNAMENTS HISTORY */}
+            <button
+              id="tab-history"
+              onClick={() => setActiveTab("history")}
+              className={`px-4 py-2 rounded-lg text-xs font-black tracking-wider uppercase flex items-center gap-2 transition-all cursor-pointer border ${
+                activeTab === "history"
+                  ? "bg-gold-primary text-black border-gold-primary shadow-lg glow-winner"
+                  : "text-slate-400 border-transparent hover:text-white hover:bg-dark-border"
+              }`}
+            >
+              <Trophy className="w-4 h-4" />
+              Histórico
+            </button>
+
             {/* TAB: AUDIT LOGS */}
             {isAdmin && (
               <button
@@ -1101,17 +1220,7 @@ export default function App() {
           />
         )}
 
-        {activeTab === "numbers-grid" && (
-          <NumberGrid
-            tournament={tournament}
-            numbers={numbers}
-            participants={participants}
-            onReserveNumbers={handleReserveNumbers}
-            onConfirmPaymentDirectly={handleConfirmPaymentDirectly}
-            onCancelReservationDirectly={handleCancelReservationDirectly}
-            isAdmin={isAdmin}
-          />
-        )}
+
 
         {activeTab === "participants" && (
           <ParticipantList
@@ -1154,6 +1263,12 @@ export default function App() {
           />
         )}
 
+        {activeTab === "history" && (
+          <HistoryList 
+            history={history} 
+          />
+        )}
+
       </main>
 
       {/* ADMIN LOGIN MODAL */}
@@ -1170,6 +1285,8 @@ export default function App() {
                 onClick={() => {
                   setShowAdminLogin(false);
                   setLoginError("");
+                  setAdminUsernameInput("");
+                  setAdminPasswordInput("");
                 }}
                 className="p-1.5 bg-dark-card-elevated hover:bg-dark-border border border-dark-border-light rounded-full text-slate-300 transition-colors cursor-pointer"
               >
@@ -1181,19 +1298,41 @@ export default function App() {
               onSubmit={(e) => {
                 e.preventDefault();
                 setLoginError("");
-                // Simple master password: 'admin'
-                if (adminPasswordInput.trim() === "admin" || adminPasswordInput.trim() === "admin123") {
+                const username = adminUsernameInput.trim();
+                const password = adminPasswordInput.trim();
+                
+                if (
+                  (username === "admin321" && password === "Hiwry#1010") ||
+                  ((username === "admin" || username === "") && (password === "admin" || password === "admin123"))
+                ) {
                   setIsAdmin(true);
-                  localStorage.setItem("raffle_is_admin", "true");
+                  safeSetLocalStorage("raffle_is_admin", "true");
                   setShowAdminLogin(false);
+                  setAdminUsernameInput("");
                   setAdminPasswordInput("");
                 } else {
-                  setLoginError("Senha incorreta! Use: admin");
+                  setLoginError("Usuário ou senha incorretos!");
                 }
               }}
               className="space-y-4"
               id="form-admin-login"
             >
+              <div className="space-y-1.5">
+                <label className="block text-xs font-black text-slate-300 uppercase tracking-wider">
+                  Usuário de Acesso
+                </label>
+                <input
+                  id="input-admin-username"
+                  type="text"
+                  required
+                  placeholder="Digite o usuário"
+                  value={adminUsernameInput}
+                  onChange={(e) => setAdminUsernameInput(e.target.value)}
+                  className="w-full px-4 py-3 bg-dark-card-elevated border border-dark-border rounded-xl text-xs text-white focus:bg-dark-card focus:border-gold-primary focus:ring-1 focus:ring-gold-primary outline-none"
+                  autoFocus
+                />
+              </div>
+
               <div className="space-y-1.5">
                 <label className="block text-xs font-black text-slate-300 uppercase tracking-wider">
                   Senha de Acesso
@@ -1202,17 +1341,16 @@ export default function App() {
                   id="input-admin-password"
                   type="password"
                   required
-                  placeholder="Digite a senha (padrão: admin)"
+                  placeholder="Digite a senha"
                   value={adminPasswordInput}
                   onChange={(e) => setAdminPasswordInput(e.target.value)}
                   className="w-full px-4 py-3 bg-dark-card-elevated border border-dark-border rounded-xl text-xs text-white focus:bg-dark-card focus:border-gold-primary focus:ring-1 focus:ring-gold-primary outline-none"
-                  autoFocus
                 />
                 {loginError && (
                   <p className="text-xs text-rose-500 font-bold mt-1.5">{loginError}</p>
                 )}
                 <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1">
-                  Dica de teste: Use a senha <strong className="text-gold-primary">admin</strong>
+                  Acesso restrito para administradores autorizados.
                 </p>
               </div>
 

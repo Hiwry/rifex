@@ -297,10 +297,10 @@ export default function Dashboard({
               {tournament.is_infinite ? `Total Adquirido: ${numbers.length}` : `Total: ${totalNumbers} cotas`}
             </span>
             <button 
-              onClick={() => onTabChange("numbers-grid")}
+              onClick={() => onTabChange("participants")}
               className="text-gold-primary hover:text-white font-bold transition-colors cursor-pointer uppercase tracking-wider text-[10px]"
             >
-              Ver Grade
+              Gerenciar
             </button>
           </div>
         </div>
@@ -476,10 +476,10 @@ export default function Dashboard({
 
           <div className="mt-5 pt-4 border-t border-dark-border-light">
             <button
-              onClick={() => onTabChange("numbers-grid")}
+              onClick={() => onTabChange("participants")}
               className="w-full text-center py-2.5 bg-gold-primary hover:bg-gold-dark text-black rounded-lg text-xs font-black uppercase tracking-wider transition-colors cursor-pointer glow-winner"
             >
-              Adquirir Mais Números
+              Gerenciar Participantes & Números
             </button>
           </div>
         </div>

@@ -119,3 +119,18 @@ export interface AuditLog {
   new_data?: string; // JSON string or text representation
   created_at: string;
 }
+
+export interface TournamentHistoryEntry {
+  id: string;
+  tournament_id: string;
+  name: string;
+  description: string;
+  winning_number?: number;
+  winner_nickname?: string;
+  winner_contact?: string;
+  confirmed_amount: number;
+  prize_amount: number;
+  finished_at: string;
+  is_infinite?: boolean;
+}
+

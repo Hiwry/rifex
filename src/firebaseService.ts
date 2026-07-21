@@ -18,6 +18,7 @@ import {
   TournamentStatus,
   NumberStatus,
   PaymentStatus,
+  TournamentHistoryEntry,
 } from "./types";
 import {
   seedTournament,
@@ -33,13 +34,13 @@ import {
  */
 function sanitizeForFirestore(val: any): any {
   if (val === undefined) {
-    return null;
+    return undefined;
   }
   if (val === null) {
     return null;
   }
   if (Array.isArray(val)) {
-    return val.map(sanitizeForFirestore);
+    return val.map(sanitizeForFirestore).filter((v) => v !== undefined);
   }
   if (typeof val === "object") {
     // Check if it's a Date
@@ -67,6 +68,7 @@ const NUMBERS_COLLECTION = "numbers";
 const PAYMENTS_COLLECTION = "payments";
 const DRAW_COLLECTION = "draws";
 const LOGS_COLLECTION = "audit_logs";
+const HISTORY_COLLECTION = "tournaments_history";
 
 /**
  * Loads all data from Firestore, falls back to local seed data if database is empty.
@@ -370,3 +372,36 @@ export async function clearAllAuditLogsInFirebase() {
     console.error("Error clearing audit logs in Firebase:", err);
   }
 }
+
+/**
+ * Saves a completed tournament history entry to Firebase.
+ */
+export async function saveTournamentHistoryToFirebase(entry: TournamentHistoryEntry) {
+  try {
+    const docRef = doc(db, HISTORY_COLLECTION, entry.id);
+    await setDoc(docRef, sanitizeForFirestore(entry));
+  } catch (err) {
+    console.error("Error saving tournament history to Firebase:", err);
+  }
+}
+
+/**
+ * Loads all completed tournament history entries from Firebase.
+ */
+export async function loadTournamentHistoryFromFirebase(): Promise<TournamentHistoryEntry[]> {
+  try {
+    const colRef = collection(db, HISTORY_COLLECTION);
+    const snap = await getDocs(colRef);
+    const history: TournamentHistoryEntry[] = [];
+    snap.forEach((doc) => {
+      history.push(doc.data() as TournamentHistoryEntry);
+    });
+    // Sort by finished_at newest first
+    history.sort((a, b) => new Date(b.finished_at).getTime() - new Date(a.finished_at).getTime());
+    return history;
+  } catch (err) {
+    console.error("Error loading tournament history from Firebase:", err);
+    return [];
+  }
+}
+

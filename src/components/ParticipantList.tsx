@@ -141,10 +141,12 @@ export default function ParticipantList({
     if (!addingNumbersToParticipant) return;
     
     // Parse input string of numbers, e.g. "5, 12, 45"
+    const minVal = tournament.is_infinite ? 1 : tournament.number_start;
+    const maxVal = tournament.is_infinite ? 999999 : tournament.number_end;
     const inputNumbers = newNumbersStr
       .split(/[,\s]+/)
       .map((s) => parseInt(s.trim()))
-      .filter((n) => !isNaN(n) && n >= tournament.number_start && n <= tournament.number_end);
+      .filter((n) => !isNaN(n) && n >= minVal && n <= maxVal);
 
     if (inputNumbers.length === 0) {
       alert("Por favor, digite números válidos dentro do range do torneio!");
@@ -196,8 +198,10 @@ export default function ParticipantList({
 
   const openApprovalModal = (p: Participant) => {
     const pNumbers = getParticipantNumbers(p.id);
-    const pendingNums = pNumbers.filter((n) => n.status === NumberStatus.Reservado).map((n) => n.number);
-    setSelectedApprovalNums(pendingNums);
+    const activeNums = pNumbers
+      .filter((n) => n.status === NumberStatus.Reservado || n.status === NumberStatus.Pago)
+      .map((n) => n.number);
+    setSelectedApprovalNums(activeNums);
     setApprovingParticipant(p);
   };
 
@@ -718,7 +722,7 @@ export default function ParticipantList({
                     className="w-full px-3 py-2.5 bg-dark-card-elevated border border-dark-border rounded-lg text-xs font-mono text-white focus:bg-dark-card focus:border-gold-primary focus:ring-1 focus:ring-gold-primary outline-none"
                   />
                   <span className="text-[10px] text-slate-500 block mt-1.5 font-bold uppercase tracking-wider">
-                    Valores permitidos: de {tournament.number_start} a {tournament.number_end}
+                    Valores permitidos: de {tournament.is_infinite ? "1" : tournament.number_start} a {tournament.is_infinite ? "999.999" : tournament.number_end}
                   </span>
                 </div>
 
@@ -773,7 +777,7 @@ export default function ParticipantList({
 
                 <div className="space-y-2 max-h-60 overflow-y-auto pr-1 bg-dark-card-elevated/50 p-2.5 rounded-xl border border-dark-border-light">
                   {getParticipantNumbers(approvingParticipant.id)
-                    .filter((n) => n.status === NumberStatus.Reservado)
+                    .filter((n) => n.status === NumberStatus.Reservado || n.status === NumberStatus.Pago)
                     .map((n) => {
                       const numStr = padronizarNumero(n.number, tournament.number_end);
                       const isChecked = selectedApprovalNums.includes(n.number);
@@ -801,8 +805,13 @@ export default function ParticipantList({
                               className="w-4 h-4 accent-success-vibrant cursor-pointer rounded border-dark-border bg-dark-card"
                             />
                             <div className="flex flex-col">
-                              <span className="font-mono font-black text-sm tracking-wide">
+                              <span className="font-mono font-black text-sm tracking-wide flex items-center gap-2">
                                 Número: {numStr}
+                                {n.status === NumberStatus.Pago && (
+                                  <span className="text-[8px] bg-success-vibrant/20 text-success-vibrant px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
+                                    Pago
+                                  </span>
+                                )}
                               </span>
                               <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">
                                 Preço: {formatarValor(tournament.number_price)}
@@ -813,7 +822,7 @@ export default function ParticipantList({
                           <div>
                             {isChecked ? (
                               <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-success-vibrant/15 text-success-vibrant border border-success-vibrant/20">
-                                Aprovar
+                                {n.status === NumberStatus.Pago ? "Manter Pago" : "Aprovar"}
                               </span>
                             ) : (
                               <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20">
@@ -851,12 +860,12 @@ export default function ParticipantList({
                   id="btn-confirm-granular-approval"
                   type="button"
                   onClick={() => {
-                    const allPending = getParticipantNumbers(approvingParticipant.id)
-                      .filter((n) => n.status === NumberStatus.Reservado)
+                    const allActive = getParticipantNumbers(approvingParticipant.id)
+                      .filter((n) => n.status === NumberStatus.Reservado || n.status === NumberStatus.Pago)
                       .map((n) => n.number);
 
                     const numbersToApprove = selectedApprovalNums;
-                    const numbersToRelease = allPending.filter((num) => !selectedApprovalNums.includes(num));
+                    const numbersToRelease = allActive.filter((num) => !selectedApprovalNums.includes(num));
 
                     onApproveNumbersOfParticipant(approvingParticipant.id, numbersToApprove, numbersToRelease);
                     setApprovingParticipant(null);
