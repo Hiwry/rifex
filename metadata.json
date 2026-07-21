@@ -1,0 +1,6 @@
+{
+  "name": "Sistema de Torneio por Sorteio",
+  "description": "Sistema completo e responsivo para cadastro de torneios, controle de participantes, compra de números (100K cada), confirmação de pagamentos e realização do sorteio.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

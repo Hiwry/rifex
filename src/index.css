@@ -1,0 +1,55 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700;900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-dark-bg: #0A0B0D;
+  --color-dark-card: #14161B;
+  --color-dark-card-elevated: #1B1E24;
+  --color-dark-border: #23262D;
+  --color-dark-border-light: #2D3139;
+  --color-gold-primary: #FFD700;
+  --color-gold-dark: #B8860B;
+  --color-success-vibrant: #00C853;
+  --color-warning-vibrant: #FFAB00;
+  --color-danger-vibrant: #FF4444;
+  
+  --font-sans: "Plus Jakarta Sans", "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Space Grotesk", "Helvetica Neue", Arial, sans-serif;
+}
+
+/* Custom styles for high-end look */
+.prize-gradient {
+  background: linear-gradient(135deg, #FFD700 0%, #B8860B 100%);
+}
+
+.glow-success {
+  box-shadow: 0 0 15px rgba(0, 200, 83, 0.25);
+}
+
+.glow-warning {
+  box-shadow: 0 0 15px rgba(255, 171, 0, 0.25);
+}
+
+.glow-danger {
+  box-shadow: 0 0 15px rgba(255, 68, 68, 0.25);
+}
+
+.glow-winner {
+  box-shadow: 0 0 25px rgba(255, 215, 0, 0.5);
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #14161B;
+}
+::-webkit-scrollbar-thumb {
+  background: #2D3139;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #FFD700;
+}
